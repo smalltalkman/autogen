@@ -468,7 +468,7 @@ class BaseOpenAIChatCompletionClient(ChatCompletionClient):
             # Legacy support for getting beta client mode from response_format.
             value = create_args["response_format"]
             if isinstance(value, type) and issubclass(value, BaseModel):
-                if self.model_info["structured_output"] is False:
+                if self.model_info["structured_output"] is False and self.model_info["json_output"] is False:
                     raise ValueError("Model does not support structured output.")
                 warnings.warn(
                     "Using response_format to specify the BaseModel for structured output type will be deprecated. "
@@ -492,7 +492,7 @@ class BaseOpenAIChatCompletionClient(ChatCompletionClient):
                 # Text mode.
                 create_args["response_format"] = ResponseFormatText(type="text")
             elif isinstance(json_output, type) and issubclass(json_output, BaseModel):
-                if self.model_info["structured_output"] is False:
+                if self.model_info["structured_output"] is False and self.model_info["json_output"] is False:
                     raise ValueError("Model does not support structured output.")
                 if response_format_value is not None:
                     raise ValueError(
@@ -604,7 +604,7 @@ class BaseOpenAIChatCompletionClient(ChatCompletionClient):
                 self._client.beta.chat.completions.parse(
                     messages=create_params.messages,
                     tools=(create_params.tools if len(create_params.tools) > 0 else NOT_GIVEN),
-                    response_format=create_params.response_format,
+                    response_format=create_params.response_format if self.model_info["structured_output"] else ResponseFormatJSONObject(type="json_object"),
                     **create_params.create_args,
                 )
             )
@@ -1036,7 +1036,7 @@ class BaseOpenAIChatCompletionClient(ChatCompletionClient):
         async with self._client.beta.chat.completions.stream(
             messages=oai_messages,
             tools=tool_params if len(tool_params) > 0 else NOT_GIVEN,
-            response_format=(response_format if response_format is not None else NOT_GIVEN),
+            response_format=((response_format if self.model_info["structured_output"] else ResponseFormatJSONObject(type="json_object")) if response_format is not None else NOT_GIVEN),
             **create_args_no_response_format,
         ) as stream:
             while True:
